@@ -11,6 +11,7 @@ from torch import nn
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import log_loss
 import random
 from matplotlib import pyplot as plt
 
@@ -35,7 +36,7 @@ def load_HNH(l1, l2, time):
 			p = p1 + str(x) + '.csv'
 			data = pd.read_csv(p, header=None)
 			if len(data) > 30:
-				data = data.iloc[:30, 1:13].values.tolist()
+				data = data.iloc[:30, 1:15].values.tolist()
 				cb_data.append(data)
 				label.append(1)
 		except:
@@ -49,7 +50,7 @@ def load_HNH(l1, l2, time):
 			p = p2 + str(y) + '.csv'
 			data = pd.read_csv(p, header=None)
 			if len(data) > 30:
-				data = data.iloc[:30, 1:13].values.tolist()
+				data = data.iloc[:30, 1:15].values.tolist()
 				cb_data.append(data)
 				label.append(0)
 		except:
@@ -99,12 +100,12 @@ def load_data():
 	return X1, y1, X2, y2
 
 def pre_data(X,y):
-	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
-	X_train = X_train.reshape(-1,12)
-	X_test = X_test.reshape(-1,12)
+	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+	X_train = X_train.reshape(-1,14)
+	X_test = X_test.reshape(-1,14)
 	mean_std_scaler = preprocessing.StandardScaler().fit(X_train)
-	X_train = mean_std_scaler.transform(X_train).reshape(-1,30,12)
-	X_test = mean_std_scaler.transform(X_test).reshape(-1,30,12)
+	X_train = mean_std_scaler.transform(X_train).reshape(-1,30,14)
+	X_test = mean_std_scaler.transform(X_test).reshape(-1,30,14)
 	X_train = torch.from_numpy(X_train).float()
 	X_test = torch.from_numpy(X_test).float()
 	y_train = torch.from_numpy(y_train).float()
@@ -126,12 +127,28 @@ def to_one_zero(X):
 class LSTM(nn.Module):
 	def __init__(self):
 		super(LSTM, self).__init__()
-		self.linear_layers= nn.Sequential(
+		# self.linear_layers= nn.Sequential(
+		# 	nn.Dropout(0.5),
+		# 	nn.Linear(INTPUT_SIZE, 8),
+		# 	nn.ReLU(),
+		# 	)
+		# self.rnn = nn.LSTM(
+		# 	input_size=8,
+		# 	dropout=0.5,
+		# 	hidden_size=16,
+		# 	num_layers=2,
+		# 	batch_first=True,
+		# 	)
+		# self.dense= nn.Sequential(
+		# 	nn.Dropout(0.5),
+		# 	nn.Linear(16, 6),
+		# 	nn.ReLU(),
+		# 	nn.Linear(6,1)
+		# 	)
+
+		self.cnn = nn.Sequential(
 			nn.Dropout(0.5),
-			nn.Linear(INTPUT_SIZE, 24),
-			nn.ReLU(),
-			nn.Dropout(0.5),
-			nn.Linear(24, 8),
+			nn.Conv1d(INTPUT_SIZE,8,2),
 			nn.ReLU(),
 			)
 		self.rnn = nn.LSTM(
@@ -147,39 +164,27 @@ class LSTM(nn.Module):
 			nn.ReLU(),
 			nn.Linear(6,1)
 			)
-		# self.rnn = nn.LSTM(
-		# 	input_size=INTPUT_SIZE,
-		# 	hidden_size=24,
-		# 	num_layers=2,
-		# 	batch_first=True,
-		# 	)
-		# self.dense= nn.Sequential(
-		# 	# nn.Dropout(0.5),
-		# 	nn.Linear(24, 12),
-		# 	nn.ReLU(),
-		# 	# nn.Dropout(0.5),
-		# 	nn.Linear(12, 6),
-		# 	nn.ReLU(),
-		# 	nn.Linear(6, 1),
-		# 	)
 
 	def forward(self, x):
-		out = self.linear_layers(x)
+		# out = self.linear_layers(x)
+		# h0 = c0 = torch.randn(2, x.shape[0], 16)
+		# r_out, _ = self.rnn(out, (h0, c0))
+		# r_out = r_out[:,-1,:]
+		# out = self.dense(r_out)
+		# return out
+		x = x.permute(0,2,1)
+		out = self.cnn(x)
+		out = out.permute(0,2,1)
 		h0 = c0 = torch.randn(2, x.shape[0], 16)
 		r_out, _ = self.rnn(out, (h0, c0))
 		r_out = r_out[:,-1,:]
 		out = self.dense(r_out)
 		return out
-		# h0 = c0 = torch.randn(2, x.shape[0], 24)
-		# r_out, _ = self.rnn(x, (h0, c0))
-		# out = r_out[:,-1,:]
-		# out = self.dense(out)
-		# return out
 
 
 BATCH_SIZE = 32
 TIME_STEP = 30
-INTPUT_SIZE = 12
+INTPUT_SIZE = 14
 LR = 0.001
 
 if __name__ == '__main__':
@@ -197,7 +202,7 @@ if __name__ == '__main__':
 	dataset_1 = Data.TensorDataset(X1_train, y1_train)
 	dataset_2 = Data.TensorDataset(X2_train, y2_train)
 	loader = Data.DataLoader(
-		dataset=dataset_2,
+		dataset=dataset_1,
 		batch_size=BATCH_SIZE,
 		shuffle=True,
 		num_workers=2,
@@ -209,19 +214,20 @@ if __name__ == '__main__':
 	scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, verbose=True)
 
 	epoch_rec = []
+	train_loss_rec = []
 	loss_rec = []
 	AUC_rec = []
 	accu_rec = []
 
-	for epoch in range(300):
+	for epoch in range(200):
 		for step, (b_x, b_y) in enumerate(loader):
 
-			b_x = b_x.view(-1, 30, 12)
+			b_x = b_x.view(-1, 30, 14)
 			output = lstm(b_x)
 			b_y = b_y.numpy().reshape(-1,1)
 			b_y = torch.from_numpy(b_y)
 			loss = loss_func(output, b_y)
-			# train_loss = loss
+			train_loss = loss
 			optimizer.zero_grad()
 			loss.backward()
 			optimizer.step()
@@ -230,18 +236,20 @@ if __name__ == '__main__':
 			if step % 50 == 0:
 				lstm = lstm.eval()
 				with torch.no_grad():
-					test_output = lstm(X2_test.view(-1,30,12))
-					y_test = y2_test.numpy().reshape(-1,1)
+					test_output = lstm(X1_test.view(-1,30,14))
+					y_test = y1_test.numpy().reshape(-1,1)
 					y_test = torch.from_numpy(y_test)
 					test_loss = loss_func(test_output, y_test)
 					true_y = y_test.numpy().reshape(-1,)
 					pred_y = to_one_zero(torch.sigmoid(test_output).numpy())
-					print('epoch',epoch + 1,'|step',step,'|test_loss: %.5f ' % test_loss.data.numpy(),
-						'|AUC: %.5f ' % roc_auc_score(y_test,torch.sigmoid(test_output)), '|accu: %.5f ' % accuracy_score(pred_y, true_y))
-					print('pred_y:',pred_y)
-					print('true_y:',true_y)
+					print('epoch',epoch + 1,'|step',step,'|loss: %.5f ' % test_loss.data.numpy(),
+						'|AUC: %.5f ' % roc_auc_score(y_test,torch.sigmoid(test_output)),
+						'|accu: %.5f ' % accuracy_score(pred_y, true_y))
+					# print('pred_y:',pred_y)
+					# print('true_y:',true_y)
 
 					epoch_rec.append(epoch)
+					train_loss_rec.append(train_loss.data.numpy())
 					loss_rec.append(test_loss.data.numpy())
 					AUC_rec.append(roc_auc_score(y_test,torch.sigmoid(test_output)))
 					accu_rec.append(accuracy_score(pred_y, true_y))
@@ -249,10 +257,14 @@ if __name__ == '__main__':
 
 	epoch_rec = np.array(epoch_rec)
 	loss_rec = np.array(loss_rec)
+	train_loss_rec = np.array(train_loss_rec)
 	AUC_rec = np.array(AUC_rec)
 	accu_rec = np.array(accu_rec)
-	plt.plot(epoch_rec,loss_rec,label='test-loss')
+	#plt.plot(epoch_rec,train_loss_rec,label='train-loss')
+	plt.plot(epoch_rec,loss_rec,label='log-loss')
 	plt.plot(epoch_rec,AUC_rec,label='AUC')
-	plt.plot(epoch_rec,accu_rec,label='accu')
+	# plt.plot(epoch_rec,accu_rec,label='accu')
+	plt.xlabel('epoch')
+	plt.ylabel('logloss & AUC')
 	plt.legend()
 	plt.show()
