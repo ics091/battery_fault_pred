@@ -32,12 +32,12 @@ INTPUT_SIZE表示原始数据特征数量，14个特征，8表示卷积后特征
 
 ```python
 self.rnn = nn.LSTM(
-			input_size=8,
-			dropout=0.5,
-			hidden_size=16,
-			num_layers=2,
-			batch_first=True,
-			)
+		  input_size=8,
+		  dropout=0.5,
+		  hidden_size=16,
+		  num_layers=2,
+		  batch_first=True,
+		  )
 ```
 
 input_size=8表示经之前CNN卷积后的特征数量，hidden_size=16表示隐藏层大小，即隐藏层节点数，num_layers=2表示使用两层LSTM网络堆叠；
@@ -95,4 +95,4 @@ x = rnn_utils.pack_padded_sequence(x, length, batch_first=True)
 
 ##### 存在的问题：
 
-可能由于修改之前的模型结构的原因，或者数据的序列长度差距太大（约0到180不等），训练效果不是太好，（test loss不明显收敛）而且训练速度很慢。
+可能由于修改之前的模型结构的原因，或者数据的序列长度差距太大（约0到180不等），训练效果不是太好（test loss不明显收敛）,而且训练速度很慢。
