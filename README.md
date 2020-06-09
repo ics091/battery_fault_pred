@@ -81,6 +81,7 @@ if len(data) > 30:
 考虑实际应用，变长时间序列作为输入更具灵活性，所以修改模型结构和训练数据加载方式，在每批数据进入模型之前通过
 
 ```python
+# pad_sequence X
 X = rnn_utils.pad_sequence(X, batch_first=True, padding_value=0)
 ```
 
