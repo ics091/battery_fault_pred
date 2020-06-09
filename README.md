@@ -10,6 +10,8 @@ LR = 0.001
 # 优化器和损失函数
 optimizer = torch.optim.Adam(lstm.parameters(), lr=LR)
 loss_func = nn.BCEWithLogitsLoss()
+# 训练轮次
+epoch = 100
 ```
 
 #### 网络结构
