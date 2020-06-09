@@ -3,10 +3,13 @@
 #### 超参数
 
 ```python
+# mini-batch
 BATCH_SIZE = 32
-TIME_STEP = 30
-INTPUT_SIZE = 14
+# 学习率
 LR = 0.001
+# 优化器和损失函数
+optimizer = torch.optim.Adam(lstm.parameters(), lr=LR)
+loss_func = nn.BCEWithLogitsLoss()
 ```
 
 #### 网络结构
