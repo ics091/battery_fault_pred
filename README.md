@@ -20,7 +20,7 @@ epoch = 100
 
 ```python
 self.cnn = nn.Sequential(
-			nn.Dropout(0.5),
+			# nn.Dropout(0.5),
 			nn.Conv1d(INTPUT_SIZE,8,2),
 			nn.ReLU(),
 			)
@@ -33,7 +33,7 @@ INTPUT_SIZE表示原始数据特征数量，14个特征，8表示卷积后特征
 ```python
 self.rnn = nn.LSTM(
 		  input_size=8,
-		  dropout=0.5,
+		  # dropout=0.5,
 		  hidden_size=16,
 		  num_layers=2,
 		  batch_first=True,
